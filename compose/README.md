@@ -41,7 +41,7 @@ This project demonstrates a simple two-service API setup with a Postgres databas
 
 2. Build and run the services:
    ```
-   docker-compose up --build
+   docker-compose up --build &
    ```
 
 3. Access the API:
