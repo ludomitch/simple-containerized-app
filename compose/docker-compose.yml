@@ -1,0 +1,28 @@
+services:
+  postgres:
+    image: postgres:13
+    environment:
+      POSTGRES_DB: mydb
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  db_service:
+    build: ./db_service
+    environment:
+      DB_HOST: postgres
+      DB_NAME: mydb
+      DB_USER: user
+      DB_PASSWORD: password
+    depends_on:
+      - postgres
+
+  api_service:
+    build: ./api_service
+    ports:
+      - "8000:8000"
+    environment:
+      DB_SERVICE_URL: http://db_service:8000
+    depends_on:
+      - db_service
