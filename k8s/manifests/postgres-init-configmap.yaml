@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init-script
+data:
+  init.sql: |
+    CREATE TABLE strings (
+        id SERIAL PRIMARY KEY,
+        string_value TEXT NOT NULL
+    );
+
+    INSERT INTO strings (string_value) VALUES ('hello world');
