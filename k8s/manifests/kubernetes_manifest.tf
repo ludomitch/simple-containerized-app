@@ -102,6 +102,13 @@ resource "kubernetes_manifest" "prometheus_grafana_manifests" {
   count = length(local.prometheus_grafana_manifests)
   manifest = yamldecode(local.prometheus_grafana_manifests[count.index])
   depends_on = [null_resource.wait_for_cluster, kubernetes_namespace.simple_app]
+
+  // Add this block to handle the ServiceAccount resource
+  lifecycle {
+    ignore_changes = [
+      manifest.metadata[0].namespace,
+    ]
+  }
 }
 
 

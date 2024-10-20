@@ -47,8 +47,8 @@ module "eks" {
   eks_managed_node_groups = {
     one = {
       min_size     = 1
-      max_size     = 3
-      desired_size = 2
+      max_size     = 2
+      desired_size = 1
     }
   }
 
@@ -135,11 +135,36 @@ resource "aws_iam_role_policy_attachment" "eks_admin_policy_attachment" {
   role       = aws_iam_role.eks_admin_role.name
 }
 
+// Add this new security group for the load balancer
+resource "aws_security_group" "lb_sg" {
+  name        = "eks-lb-sg"
+  description = "Security group for EKS load balancer"
+  vpc_id      = module.vpc.vpc_id
+
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]  // Allow traffic from anywhere. Restrict this as needed.
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "eks-lb-sg"
+  }
+}
+
 resource "aws_lb" "eks_lb" {
   name               = "eks-load-balancer"
   internal           = false
   load_balancer_type = "application"
-  security_groups    = [module.eks.cluster_security_group_id]
+  security_groups    = [aws_security_group.lb_sg.id]  // Use the new security group
   subnets            = module.vpc.public_subnets
 
   enable_deletion_protection = false
@@ -149,24 +174,10 @@ resource "aws_lb" "eks_lb" {
   }
 }
 
-resource "aws_lb_listener" "front_end" {
-  load_balancer_arn = aws_lb.eks_lb.arn
-  port              = "80"
-  protocol          = "HTTP"
-
-  default_action {
-    type = "fixed-response"
-    fixed_response {
-      content_type = "text/plain"
-      message_body = "OK"
-      status_code  = "200"
-    }
-  }
-}
-
-resource "aws_lb_target_group" "eks_tg" {
-  name        = "eks-target-group"
-  port        = 30000  // Assuming your NodePort service uses port 30000
+// Update the existing target group for the API service
+resource "aws_lb_target_group" "api_tg" {
+  name        = "eks-api-target-group"
+  port        = 30000  // This matches the NodePort of your API service
   protocol    = "HTTP"
   vpc_id      = module.vpc.vpc_id
   target_type = "instance"
@@ -179,25 +190,78 @@ resource "aws_lb_target_group" "eks_tg" {
   }
 }
 
-resource "aws_lb_listener_rule" "eks_rule" {
+// Add a new target group for Grafana
+resource "aws_lb_target_group" "grafana_tg" {
+  name        = "eks-grafana-target-group"
+  port        = 30002  // This matches the NodePort of your Grafana service
+  protocol    = "HTTP"
+  vpc_id      = module.vpc.vpc_id
+  target_type = "instance"
+
+  health_check {
+    path                = "/api/health"  // Grafana health check endpoint
+    port                = "traffic-port"
+    healthy_threshold   = 2
+    unhealthy_threshold = 10
+  }
+}
+
+resource "aws_lb_listener" "front_end" {
+  load_balancer_arn = aws_lb.eks_lb.arn
+  port              = "80"
+  protocol          = "HTTP"
+
+  default_action {
+    type = "fixed-response"
+    fixed_response {
+      content_type = "text/plain"
+      message_body = "Welcome to EKS"
+      status_code  = "200"
+    }
+  }
+}
+
+// Add listener rules for API and Grafana
+resource "aws_lb_listener_rule" "api_rule" {
   listener_arn = aws_lb_listener.front_end.arn
   priority     = 100
 
   action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.eks_tg.arn
+    target_group_arn = aws_lb_target_group.api_tg.arn
   }
 
   condition {
     path_pattern {
-      values = ["/*"]
+      values = ["/api/*"]
     }
   }
 }
 
-resource "aws_autoscaling_attachment" "eks_asg_attachment" {
+resource "aws_lb_listener_rule" "grafana_rule" {
+  listener_arn = aws_lb_listener.front_end.arn
+  priority     = 300
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.grafana_tg.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/grafana/*"]
+    }
+  }
+}
+
+resource "aws_autoscaling_attachment" "eks_asg_attachment_api" {
   autoscaling_group_name = module.eks.eks_managed_node_groups["one"].node_group_autoscaling_group_names[0]
-  lb_target_group_arn    = aws_lb_target_group.eks_tg.arn
+  lb_target_group_arn    = aws_lb_target_group.api_tg.arn
+}
+
+resource "aws_autoscaling_attachment" "eks_asg_attachment_grafana" {
+  autoscaling_group_name = module.eks.eks_managed_node_groups["one"].node_group_autoscaling_group_names[0]
+  lb_target_group_arn    = aws_lb_target_group.grafana_tg.arn
 }
 
 output "load_balancer_dns" {

@@ -15,8 +15,7 @@ spec:
     spec:
       containers:
       - name: db-service
-        image: db_service:latest
-        imagePullPolicy: Never
+        image: ludomitch/db-service:latest
         env:
         - name: DB_HOST
           value: postgres
@@ -37,6 +36,7 @@ metadata:
 spec:
   selector:
     app: db-service
+  type: ClusterIP  # Change to ClusterIP as it doesn't need external access
   ports:
     - protocol: TCP
       port: 8000

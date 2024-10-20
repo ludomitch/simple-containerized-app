@@ -143,6 +143,7 @@ metadata:
 spec:
   selector:
     app: prometheus
+  type: ClusterIP  # Change to ClusterIP as it doesn't need external access
   ports:
   - port: 9090
     targetPort: 9090
@@ -167,6 +168,11 @@ spec:
         image: grafana/grafana:8.5.2
         ports:
         - containerPort: 3000
+        env:
+        - name: GF_SERVER_ROOT_URL
+          value: "%(protocol)s://%(domain)s/grafana"
+        - name: GF_SERVER_SERVE_FROM_SUB_PATH
+          value: "true"
         volumeMounts:
         - name: grafana-datasources
           mountPath: /etc/grafana/provisioning/datasources
@@ -193,15 +199,17 @@ metadata:
 spec:
   selector:
     app: grafana
+  type: NodePort
   ports:
   - port: 3000
     targetPort: 3000
+    nodePort: 30002  # This matches the target group in the load balancer
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: prometheus
-  namespace: default
+  namespace: simple-app  # Change this from 'default' to 'simple-app'
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -269,4 +277,3 @@ data:
       editable: true
       options:
         path: /var/lib/grafana/dashboards
-

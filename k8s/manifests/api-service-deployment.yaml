@@ -15,8 +15,7 @@ spec:
     spec:
       containers:
       - name: api-service
-        image: api_service:latest
-        imagePullPolicy: Never
+        image: ludomitch/api-service:latest
         env:
         - name: DB_SERVICE_URL
           value: http://db-service:8000
@@ -31,8 +30,9 @@ metadata:
 spec:
   selector:
     app: api-service
-  type: LoadBalancer  # This makes the service accessible from outside the cluster
+  type: NodePort
   ports:
     - protocol: TCP
       port: 8000
       targetPort: 8000
+      nodePort: 30000  # This matches the target group in the load balancer
