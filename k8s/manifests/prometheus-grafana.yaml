@@ -143,7 +143,7 @@ metadata:
 spec:
   selector:
     app: prometheus
-  type: ClusterIP  # Change to ClusterIP as it doesn't need external access
+  type: ClusterIP
   ports:
   - port: 9090
     targetPort: 9090
@@ -176,40 +176,43 @@ spec:
         volumeMounts:
         - name: grafana-datasources
           mountPath: /etc/grafana/provisioning/datasources
-        - name: grafana-dashboards
-          mountPath: /etc/grafana/provisioning/dashboards
-        - name: grafana-dashboard-definitions
-          mountPath: /var/lib/grafana/dashboards
+        # - name: grafana-dashboards
+        #   mountPath: /etc/grafana/provisioning/dashboards
+        # - name: grafana-dashboard-definitions
+        #   mountPath: /var/lib/grafana/dashboards
       volumes:
       - name: grafana-datasources
         configMap:
           name: grafana-datasources
-      - name: grafana-dashboards
-        configMap:
-          name: grafana-dashboard-provisioning
-      - name: grafana-dashboard-definitions
-        configMap:
-          name: grafana-dashboards
+      # - name: grafana-dashboards
+      #   configMap:
+      #     name: grafana-dashboard-provisioning
+      # - name: grafana-dashboard-definitions
+      #   configMap:
+      #     name: grafana-dashboards
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: grafana
-  namespace: simple-app 
+  namespace: simple-app
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-internal: "false"
 spec:
   selector:
     app: grafana
-  type: NodePort
+  type: LoadBalancer
   ports:
-  - port: 3000
-    targetPort: 3000
-    nodePort: 30002  # This matches the target group in the load balancer
+    - protocol: TCP
+      port: 3000
+      targetPort: 3000
+      nodePort: 30020
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: prometheus
-  namespace: simple-app  # Change this from 'default' to 'simple-app'
+  namespace: simple-app 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -243,7 +246,7 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: prometheus
-  namespace: default
+  namespace: simple-app
 ---
 apiVersion: v1
 kind: ConfigMap
