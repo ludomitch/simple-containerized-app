@@ -35,8 +35,8 @@ This project demonstrates a simple two-service API setup with a Postgres databas
 
 1. Clone this repository:
    ```
-   git clone <repository-url>
-   cd <repository-directory>
+   git clone https://github.com/ludomitch/simple-containerized-app.git
+   cd compose
    ```
 
 2. Build and run the services:

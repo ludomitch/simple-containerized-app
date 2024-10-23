@@ -21,9 +21,9 @@ provider "kubernetes" {
 
 
 locals {
-  api_service_deployment_manifests = split("---\n", file("api-service-deployment.yaml"))
-  db_service_deployment_manifests = split("---\n", file("db-service-deployment.yaml"))
-  postgres_deployment_manifests = split("---\n", file("postgres-deployment.yaml"))
+  api_service_deployment_manifests = split("---\n", file("api-service.yaml"))
+  db_service_deployment_manifests = split("---\n", file("db-service.yaml"))
+  postgres_deployment_manifests = split("---\n", file("postgres.yaml"))
   postgres_init_configmap_manifests = split("---\n", file("postgres-init-configmap.yaml"))
 
   # grafana_dashboard_manifest = file("grafana-dashboard.yaml")
@@ -75,3 +75,5 @@ resource "kubernetes_manifest" "prometheus_grafana_manifests" {
   count = length(local.prometheus_grafana_manifests)
   manifest = yamldecode(local.prometheus_grafana_manifests[count.index])
   depends_on = [kubernetes_namespace.simple_app]
+
+}
